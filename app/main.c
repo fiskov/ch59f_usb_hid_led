@@ -528,7 +528,6 @@ void DebugInit(void)
  */
 int main()
 {
-    uint8_t s;
     SetSysClock(CLK_SOURCE_PLL_60MHz);
 
     DebugInit();        // Initialize UART1 for printf/debug
