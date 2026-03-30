@@ -14,100 +14,16 @@
 
 #define DevEP0SIZE    0x40
 #define DevEP1SIZE    0x40
-// Device descriptor: bDeviceClass=0x00 (defined at interface level)
+// Device descriptor (iProduct=2 -> "TestUSB")
 // Offsets: [14]=iManufacturer=0, [15]=iProduct=2, [16]=iSerialNumber=0, [17]=bNumConfigurations=1
 const uint8_t MyDevDescr[] = {0x12,0x01,0x10,0x01,0x00,0x00,0x00,DevEP0SIZE,0x3d,0x41,0x07,0x21,0x00,0x00,0x00,0x02,0x00,0x01};
-
-/* Configuration descriptor set for USB Audio Class (UAC 1.0) recorder
- * Total length = 9(cfg) + 9(AC iface) + 9(AC header) + 12(input terminal) + 9(output terminal)
- *              + 9(AS iface alt0) + 9(AS iface alt1) + 7(AS general) + 11(format type I) + 9(iso EP) + 7(AS iso EP)
- *              = 100 = 0x64
- */
+// Configuration descriptor
 const uint8_t MyCfgDescr[] = {
-    // Configuration descriptor
-    0x09,0x02,0x64,0x00,  // bLength, bDescriptorType, wTotalLength=100
-    0x02,                  // bNumInterfaces=2 (AudioControl + AudioStreaming)
-    0x01,                  // bConfigurationValue=1
-    0x04,                  // iConfiguration=4
-    0xA0,                  // bmAttributes: bus-powered, remote wakeup
-    0x32,                  // bMaxPower=100mA
-
-    // Interface 0: AudioControl
-    0x09,0x04,0x00,0x00,  // bLength, bDescriptorType, bInterfaceNumber=0, bAlternateSetting=0
-    0x00,                  // bNumEndpoints=0
-    0x01,                  // bInterfaceClass=Audio
-    0x01,                  // bInterfaceSubClass=AudioControl
-    0x00,                  // bInterfaceProtocol=0
-    0x00,                  // iInterface=0
-
-    // AC Header descriptor (CS_INTERFACE, HEADER subtype)
-    0x09,0x24,0x01,        // bLength=9, bDescriptorType=CS_INTERFACE, bDescriptorSubtype=HEADER
-    0x00,0x01,             // bcdADC=1.00
-    0x1E,0x00,             // wTotalLength=30 (AC header + input terminal + output terminal)
-    0x01,                  // bInCollection=1 (one AudioStreaming interface)
-    0x01,                  // baInterfaceNr(1)=1
-
-    // Input Terminal: Microphone (USB IN)
-    0x0C,0x24,0x02,        // bLength=12, bDescriptorType=CS_INTERFACE, bDescriptorSubtype=INPUT_TERMINAL
-    0x01,                  // bTerminalID=1
-    0x01,0x02,             // wTerminalType=0x0201 (Microphone)
-    0x00,                  // bAssocTerminal=0
-    0x01,                  // bNrChannels=1 (mono)
-    0x00,0x00,             // wChannelConfig=0 (mono)
-    0x00,                  // iChannelNames=0
-    0x00,                  // iTerminal=0
-
-    // Output Terminal: USB streaming
-    0x09,0x24,0x03,        // bLength=9, bDescriptorType=CS_INTERFACE, bDescriptorSubtype=OUTPUT_TERMINAL
-    0x02,                  // bTerminalID=2
-    0x01,0x01,             // wTerminalType=0x0101 (USB streaming)
-    0x00,                  // bAssocTerminal=0
-    0x01,                  // bSourceID=1 (from Input Terminal)
-    0x00,                  // iTerminal=0
-
-    // Interface 1 alt 0: AudioStreaming (zero-bandwidth, no endpoints)
-    0x09,0x04,0x01,0x00,  // bLength, bDescriptorType, bInterfaceNumber=1, bAlternateSetting=0
-    0x00,                  // bNumEndpoints=0
-    0x01,                  // bInterfaceClass=Audio
-    0x02,                  // bInterfaceSubClass=AudioStreaming
-    0x00,                  // bInterfaceProtocol=0
-    0x00,                  // iInterface=0
-
-    // Interface 1 alt 1: AudioStreaming (active, 1 isochronous IN endpoint)
-    0x09,0x04,0x01,0x01,  // bLength, bDescriptorType, bInterfaceNumber=1, bAlternateSetting=1
-    0x01,                  // bNumEndpoints=1
-    0x01,                  // bInterfaceClass=Audio
-    0x02,                  // bInterfaceSubClass=AudioStreaming
-    0x00,                  // bInterfaceProtocol=0
-    0x00,                  // iInterface=0
-
-    // AS General descriptor (CS_INTERFACE, AS_GENERAL)
-    0x07,0x24,0x01,        // bLength=7, bDescriptorType=CS_INTERFACE, bDescriptorSubtype=AS_GENERAL
-    0x01,                  // bTerminalLink=1 (Input Terminal)
-    0x01,                  // bDelay=1 frame
-    0x01,0x00,             // wFormatTag=0x0001 (PCM)
-
-    // Format Type I descriptor
-    0x0B,0x24,0x02,        // bLength=11, bDescriptorType=CS_INTERFACE, bDescriptorSubtype=FORMAT_TYPE
-    0x01,                  // bFormatType=TYPE_I
-    0x01,                  // bNrChannels=1 (mono)
-    0x02,                  // bSubFrameSize=2 bytes (16-bit)
-    0x10,                  // bBitResolution=16
-    0x01,                  // bSamFreqType=1 (one frequency)
-    0x80,0x3E,0x00,        // tSamFreq=16000 Hz (0x003E80)
-
-    // Isochronous IN endpoint (EP1 IN)
-    0x09,0x05,0x81,0x01,  // bLength=9, bDescriptorType=ENDPOINT, bEndpointAddress=0x81(IN EP1), bmAttributes=Isochronous
-    DevEP1SIZE,0x00,       // wMaxPacketSize
-    0x01,                  // bInterval=1ms
-    0x00,                  // bRefresh=0
-    0x00,                  // bSynchAddress=0
-
-    // AS Isochronous endpoint descriptor (CS_ENDPOINT, EP_GENERAL)
-    0x07,0x25,0x01,        // bLength=7, bDescriptorType=CS_ENDPOINT, bDescriptorSubtype=EP_GENERAL
-    0x00,                  // bmAttributes=0
-    0x00,                  // bLockDelayUnits=0
-    0x00,0x00              // wLockDelay=0
+    0x09,0x02,0x29,0x00,0x01,0x01,0x04,0xA0,0x23,               // Configuration descriptor
+    0x09,0x04,0x00,0x00,0x02,0x03,0x00,0x00,0x05,               // Interface descriptor (HID, class=0x03)
+    0x09,0x21,0x00,0x01,0x00,0x01,0x22,0x22,0x00,               // HID descriptor
+    0x07,0x05,0x81,0x03,DevEP1SIZE,0x00,0x01,                   // Endpoint descriptor IN EP1
+    0x07,0x05,0x01,0x03,DevEP1SIZE,0x00,0x01                    // Endpoint descriptor OUT EP1
 };
 /* String descriptor table */
 // String 0: Language ID (English US = 0x0409)
