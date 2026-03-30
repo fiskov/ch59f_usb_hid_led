@@ -14,8 +14,8 @@
 
 #define DevEP0SIZE    0x40
 #define DevEP1SIZE    0x40
-// Device descriptor
-const uint8_t MyDevDescr[] = {0x12,0x01,0x10,0x01,0x00,0x00,0x00,DevEP0SIZE,0x3d,0x41,0x07,0x21,0x00,0x00,0x00,0x00,0x00,0x01};
+// Device descriptor (iProduct = 0x02 -> string index 2 = "TestUSB")
+const uint8_t MyDevDescr[] = {0x12,0x01,0x10,0x01,0x00,0x00,0x00,DevEP0SIZE,0x3d,0x41,0x07,0x21,0x00,0x00,0x00,0x00,0x02,0x01};
 // Configuration descriptor
 const uint8_t MyCfgDescr[] = {
     0x09,0x02,0x29,0x00,0x01,0x01,0x04,0xA0,0x23,               // Configuration descriptor
@@ -25,6 +25,12 @@ const uint8_t MyCfgDescr[] = {
     0x07,0x05,0x01,0x03,DevEP1SIZE,0x00,0x01               // Endpoint descriptor
 };
 /* String descriptor table */
+// String 0: Language ID (English US = 0x0409)
+const uint8_t MyLangDescr[]    = {0x04, 0x03, 0x09, 0x04};
+// String 2: Product name "TestUSB" (UTF-16LE)
+const uint8_t MyProdDescr[]    = {0x10, 0x03,
+                                   'T',0x00,'e',0x00,'s',0x00,'t',0x00,
+                                   'U',0x00,'S',0x00,'B',0x00};
 /* HID report descriptor */
 const uint8_t HIDDescr[] = {  0x06, 0x00,0xff,
                               0x09, 0x01,
@@ -246,6 +252,14 @@ void USB_DevTransProcess(void)  // USB device transfer interrupt handler
                             {
                                 switch((pSetupReqPak->wValue) & 0xff)   // Select string based on wValue
                                 {
+                                    case 0:             // Language ID descriptor
+                                        pDescr = MyLangDescr;
+                                        len = sizeof(MyLangDescr);
+                                        break;
+                                    case 2:             // Product string "TestUSB"
+                                        pDescr = MyProdDescr;
+                                        len = sizeof(MyProdDescr);
+                                        break;
                                     default:
                                         errflag = 0xFF; // Unsupported string descriptor
                                         break;
