@@ -513,8 +513,8 @@ void DevWakeup(void)
  *
  * @return  none
  */
-#define LED_SET() GPIOA_SetBits(GPIO_Pin_4)
-#define LED_RESET() GPIOA_ResetBits(GPIO_Pin_4)
+#define LED_RESET() GPIOA_SetBits(GPIO_Pin_4)
+#define LED_SET() GPIOA_ResetBits(GPIO_Pin_4)
 
 void DebugInit(void)
 {
@@ -524,6 +524,7 @@ void DebugInit(void)
     UART1_DefInit();
 
     GPIOA_ModeCfg(GPIO_Pin_4, GPIO_ModeOut_PP_5mA);
+    LED_RESET();
 }
 
 /*********************************************************************
