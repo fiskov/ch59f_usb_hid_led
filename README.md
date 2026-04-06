@@ -1,5 +1,7 @@
 # ch592_usbhid
 
+### For [webusb](https://developer.chrome.com/docs/capabilities/usb)  testing https://fiskov.github.io/webusb/index.html based on [ch592_EVT](https://github.com/openwch/ch592/tree/main/EVT/EXAM/USB/Device/VendorDefinedDev)
+
 USB HID device firmware for the **WCH CH592** RISC-V microcontroller. The firmware enumerates as a custom HID device (vendor-defined usage page `0xFF00`) with bidirectional EP1 interrupt endpoints (64 bytes each) and periodically uploads 4-byte reports to the host.
 
 ## Features
