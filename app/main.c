@@ -14,13 +14,13 @@
 
 #define DevEP0SIZE    0x40
 #define DevEP1SIZE    0x40
-// Device descriptor (iProduct=2 -> "TestUSB")
-// Offsets: [14]=iManufacturer=0, [15]=iProduct=2, [16]=iSerialNumber=0, [17]=bNumConfigurations=1
-const uint8_t MyDevDescr[] = {0x12,0x01,0x10,0x01,0x00,0x00,0x00,DevEP0SIZE,0x3d,0x41,0x07,0x21,0x00,0x00,0x00,0x02,0x00,0x01};
+// Device descriptor (iManufacturer=1 -> "wch.cn", iProduct=2 -> "ch592_testHID")
+// Offsets: [14]=iManufacturer=1, [15]=iProduct=2, [16]=iSerialNumber=0, [17]=bNumConfigurations=1
+const uint8_t MyDevDescr[] = {0x12,0x01,0x10,0x01,0xFF,0x80,0x55,DevEP0SIZE,0x48,0x43,0x37,0x55,0x00,0x00,0x01,0x02,0x00,0x01};
 // Configuration descriptor
 const uint8_t MyCfgDescr[] = {
     0x09,0x02,0x29,0x00,0x01,0x01,0x04,0xA0,0x23,               // Configuration descriptor
-    0x09,0x04,0x00,0x00,0x02,0x03,0x00,0x00,0x05,               // Interface descriptor (HID, class=0x03)
+    0x09,0x04,0x00,0x00,0x02,0xFF,0x80,0x55,0x05,               // Interface descriptor (class=0xFF)
     0x09,0x21,0x00,0x01,0x00,0x01,0x22,0x22,0x00,               // HID descriptor
     0x07,0x05,0x81,0x03,DevEP1SIZE,0x00,0x01,                   // Endpoint descriptor IN EP1
     0x07,0x05,0x01,0x03,DevEP1SIZE,0x00,0x01                    // Endpoint descriptor OUT EP1
@@ -28,10 +28,13 @@ const uint8_t MyCfgDescr[] = {
 /* String descriptor table */
 // String 0: Language ID (English US = 0x0409)
 const uint8_t MyLangDescr[]    = {0x04, 0x03, 0x09, 0x04};
-// String 2: Product name "TestUSB" (UTF-16LE)
-const uint8_t MyProdDescr[]    = {0x10, 0x03,
-                                   'T',0x00,'e',0x00,'s',0x00,'t',0x00,
-                                   'U',0x00,'S',0x00,'B',0x00};
+// String 1: Manufacturer name "wch.cn" (UTF-16LE)
+const uint8_t MyManuDescr[]    = {0x0E, 0x03,
+                                   'w',0x00,'c',0x00,'h',0x00,'.',0x00,'c',0x00,'n',0x00};
+// String 2: Product name "ch592_testHID" (UTF-16LE)
+const uint8_t MyProdDescr[]    = {0x1C, 0x03,
+                                   'c',0x00,'h',0x00,'5',0x00,'9',0x00,'2',0x00,'_',0x00,
+                                   't',0x00,'e',0x00,'s',0x00,'t',0x00,'H',0x00,'I',0x00,'D',0x00};
 /* HID report descriptor */
 const uint8_t HIDDescr[] = {  0x06, 0x00,0xff,
                               0x09, 0x01,
@@ -257,7 +260,11 @@ void USB_DevTransProcess(void)  // USB device transfer interrupt handler
                                         pDescr = MyLangDescr;
                                         len = sizeof(MyLangDescr);
                                         break;
-                                    case 2:             // Product string "TestUSB"
+                                    case 1:             // Manufacturer string "wch.cn"
+                                        pDescr = MyManuDescr;
+                                        len = sizeof(MyManuDescr);
+                                        break;
+                                    case 2:             // Product string "ch592_testHID"
                                         pDescr = MyProdDescr;
                                         len = sizeof(MyProdDescr);
                                         break;
@@ -543,14 +550,12 @@ int main()
 
     while(1)
     {// Simulate sending 4 bytes of data; actual data content can be modified by the user as needed
-        LED_SET();
         if(Ready)
         {
             Ready = 0;
             DevHIDReport(0x05, 0x10, 0x20, 0x11);
         }
         mDelaymS(100);
-        LED_RESET();
 
         if(Ready)
         {
@@ -584,6 +589,7 @@ int main()
  */
 void DevEP1_OUT_Deal(uint8_t l)
 { /* User-defined */
+    if (pEP1_OUT_DataBuf[0] & 1) LED_SET(); else LED_RESET();
     uint8_t i;
 
     for(i = 0; i < l; i++)
