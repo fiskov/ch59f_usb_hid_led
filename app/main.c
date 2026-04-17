@@ -30,7 +30,7 @@
 #define MSC_EP_IN                  0x82
 
 #define MSC_BLOCK_SIZE             512u
-#define MSC_BLOCK_COUNT            8u
+#define MSC_BLOCK_COUNT            32u
 #define MSC_DISK_SIZE              (MSC_BLOCK_SIZE * MSC_BLOCK_COUNT)
 
 #define MSC_CBW_SIGNATURE          0x43425355UL
@@ -64,23 +64,24 @@
 
 #define FAT16_BYTES_PER_SECTOR     512u
 #define FAT16_SECTORS_PER_CLUSTER  1u
+#define MBR_PARTITION_LBA          1u
 #define FAT16_RESERVED_SECTORS     1u
 #define FAT16_NUM_FATS             1u
 #define FAT16_ROOT_ENTRIES         16u
 #define FAT16_SECTORS_PER_FAT      1u
-#define FAT16_TOTAL_SECTORS        MSC_BLOCK_COUNT
+#define FAT16_TOTAL_SECTORS        (MSC_BLOCK_COUNT - MBR_PARTITION_LBA)
 #define FAT16_MEDIA_DESCRIPTOR     0xF8u
-#define FAT16_HIDDEN_SECTORS       0u
+#define FAT16_HIDDEN_SECTORS       MBR_PARTITION_LBA
 #define FAT16_SECTORS_PER_TRACK    1u
 #define FAT16_NUM_HEADS            1u
 #define FAT16_ROOT_DIR_SECTORS     1u
 #define FAT16_FIRST_DATA_SECTOR    (FAT16_RESERVED_SECTORS + FAT16_SECTORS_PER_FAT + FAT16_ROOT_DIR_SECTORS)
 #define FAT16_FILE_START_CLUSTER   2u
-#define FAT16_FILE_START_SECTOR    (FAT16_FIRST_DATA_SECTOR + (FAT16_FILE_START_CLUSTER - 2u))
+#define FAT16_FILE_START_SECTOR    (MBR_PARTITION_LBA + FAT16_FIRST_DATA_SECTOR + (FAT16_FILE_START_CLUSTER - 2u))
 
 #define URL_FILE_NAME              "WEBUSB  URL"
 #define URL_FILE_EXT               "url"
-static const char g_url_file_contents[] = "[InternetShortcut]\r\nURL=https://fiskov.github.io/webusb/";
+static const char g_url_file_contents[] = "[InternetShortcut]\r\nURL=https://fiskov.github.io/webusb/index.html\r\n";
 #define URL_FILE_SIZE              ((uint32_t)(sizeof(g_url_file_contents) - 1u))
 
 #pragma pack(push, 1)
@@ -107,9 +108,9 @@ typedef struct
 const uint8_t MyDevDescr[] = {
     0x12, 0x01,
     0x10, 0x01,
-    USB_DEVICE_CLASS_MISC,
-    USB_DEVICE_SUBCLASS_IAD,
-    USB_DEVICE_PROTOCOL_IAD,
+    0xEF,
+    0x02,
+    0x01,
     DevEP0SIZE,
     0x48, 0x43,
     0x37, 0x55,
@@ -121,8 +122,9 @@ const uint8_t MyDevDescr[] = {
 };
 
 const uint8_t MyCfgDescr[] = {
-    0x09, 0x02, 0x40, 0x00, 0x02, 0x01, 0x00, 0x80, 0x32,
+    0x09, 0x02, 0x48, 0x00, 0x02, 0x01, 0x00, 0x80, 0x32,
 
+    0x08, 0x0B, MSC_INTERFACE_NUM, 0x02, USB_CLASS_MASS_STORAGE, USB_SUBCLASS_SCSI, USB_PROTOCOL_BULK_ONLY, 0x05,
     0x09, 0x04, MSC_INTERFACE_NUM, 0x00, 0x02, USB_CLASS_MASS_STORAGE, USB_SUBCLASS_SCSI, USB_PROTOCOL_BULK_ONLY, 0x05,
     0x07, 0x05, MSC_EP_OUT, 0x02, MSC_EP_SIZE, 0x00, 0x01,
     0x07, 0x05, MSC_EP_IN, 0x02, MSC_EP_SIZE, 0x00, 0x01,
@@ -135,8 +137,8 @@ const uint8_t MyCfgDescr[] = {
 
 const uint8_t MyLangDescr[] = {0x04, 0x03, 0x09, 0x04};
 const uint8_t MyManuDescr[] = {
-    0x12, 0x03,
-    'f',0x00,'i',0x00,'s',0x00,'k',0x00,'o',0x00,'v',0x00,'-',0x00,'v',0x00
+    0x0A, 0x03,
+    'd',0x00,'e',0x00,'m',0x00,'o',0x00
 };
 const uint8_t MyProdDescr[] = {
     0x2A, 0x03,
@@ -255,13 +257,21 @@ static void msc_send_csw(uint8_t status, uint32_t residue)
 
 static void msc_prepare_disk(void)
 {
-    uint8_t *boot = &msc_disk[0];
-    uint8_t *fat = &msc_disk[MSC_BLOCK_SIZE * 1u];
-    uint8_t *root = &msc_disk[MSC_BLOCK_SIZE * 2u];
+    uint8_t *mbr = &msc_disk[0];
+    uint8_t *boot = &msc_disk[MSC_BLOCK_SIZE * MBR_PARTITION_LBA];
+    uint8_t *fat = &msc_disk[MSC_BLOCK_SIZE * (MBR_PARTITION_LBA + 1u)];
+    uint8_t *root = &msc_disk[MSC_BLOCK_SIZE * (MBR_PARTITION_LBA + 2u)];
     uint8_t *data = &msc_disk[MSC_BLOCK_SIZE * FAT16_FILE_START_SECTOR];
     uint32_t i;
 
     memset(msc_disk, 0, sizeof(msc_disk));
+
+    mbr[446 + 0] = 0x80;
+    mbr[446 + 4] = 0x06;
+    put_le32(&mbr[446 + 8], MBR_PARTITION_LBA);
+    put_le32(&mbr[446 + 12], FAT16_TOTAL_SECTORS);
+    mbr[510] = 0x55;
+    mbr[511] = 0xAA;
 
     boot[0] = 0xEB;
     boot[1] = 0x3C;
@@ -296,7 +306,7 @@ static void msc_prepare_disk(void)
 
     memcpy(&root[0], URL_FILE_NAME, 8);
     memcpy(&root[8], URL_FILE_EXT, 3);
-    root[11] = 0x21;
+    root[11] = 0x20;
     put_le16(&root[26], FAT16_FILE_START_CLUSTER);
     put_le32(&root[28], URL_FILE_SIZE);
 
@@ -362,7 +372,7 @@ static void msc_handle_scsi_command(void)
             buf[2] = 0x04;
             buf[3] = 0x02;
             buf[4] = 31;
-            memcpy(&buf[8], "FISKOV  ", 8);
+            memcpy(&buf[8], "DEMO    ", 8);
             memcpy(&buf[16], "WEBUSB DISK     ", 16);
             memcpy(&buf[32], "1.00", 4);
             alloc_len = msc_cbw.CBWCB[4];
@@ -729,7 +739,7 @@ void USB_DevTransProcess(void)
                             case USB_DESCR_TYP_HID:
                                 if(((pSetupReqPak->wIndex) & 0xFFu) == HID_INTERFACE_NUM)
                                 {
-                                    pDescr = (uint8_t *)(&MyCfgDescr[18]);
+                                    pDescr = (uint8_t *)(&MyCfgDescr[26]);
                                     len = 9;
                                 }
                                 else
